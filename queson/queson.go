@@ -1,4 +1,4 @@
-// Package queson implements QUESON compilers.
+// Package queson implements QUESON for Go.
 //
 // QUESON is an alternative notation for the JSON data model, designed to look
 // less noisy in URLs. See https://tcard.github.io/queson
