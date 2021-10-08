@@ -1,0 +1,89 @@
+
+entry = queson:queson !. { return queson, nil }
+
+queson
+    = `true`
+    / `false`
+    / `null`
+    / number
+    / array
+    / object
+    / str
+
+number "number"
+    = `-`?
+      ( '0' / ([1-9]+ [0-9]*) )
+      ( '.' [0-9]+ )?
+      ( [eE] '-'? [0-9]+ )?
+        { return c.text, nil }
+
+str "string"
+    = "w." contents:character* ".w"
+        {
+            s := bytes.NewBuffer([]byte{'"'})
+            for _, v := range contents.([]interface{}) {
+                s.Write(v.([]byte))
+            }
+            s.Write([]byte{'"'})
+            return s.Bytes(), nil
+        }
+
+character
+    = "._"
+        { return []byte("_"), nil }
+    / ".."
+        { return []byte("."), nil }
+    / "_"
+        { return []byte(" "), nil }
+    / ".u" codepoint:(hex hex hex hex)
+        {
+            s := bytes.NewBuffer([]byte(`\u`))
+            for _, v := range codepoint.([]interface{}) {
+                s.Write(v.([]byte))
+            }
+            return s.Bytes(), nil
+        }
+    / "." specialChar:[bfnrt]
+        { return append([]byte(`\`), specialChar.([]byte)...), nil }
+    / ["\\/]
+        { return append([]byte(`\`), c.text...), nil }
+    / [^.]
+
+hex
+    = [a-fA-F0-9]
+
+array "array"
+    = `I.` elements:elements `.I`
+        { return []byte(`[` + string(elements.([]byte)) + `]`), nil }
+    
+elements
+    = head:queson tail:('_' queson)*
+        {
+            s := bytes.NewBuffer(head.([]byte))
+            for _, v := range tail.([]interface{}) {
+                s.Write([]byte(`,`))
+                s.Write(v.([]interface{})[1].([]byte))
+            }
+            return s.Bytes(), nil
+        }
+    / `` { return []byte(nil), nil }
+
+object "object"
+    = `X.` properties:properties `.X`
+        { return []byte(`{` + string(properties.([]byte)) + `}`), nil }
+
+properties
+    = head:property tail:(`_` property)*
+        {
+            s := bytes.NewBuffer(head.([]byte))
+            for _, v := range tail.([]interface{}) {
+                s.Write([]byte(`,`))
+                s.Write(v.([]interface{})[1].([]byte))
+            }
+            return s.Bytes(), nil
+        }
+    / `` { return []byte(nil), nil }
+
+property
+    = key:str '-' value:queson
+        { return append(append(key.([]byte), ':'), value.([]byte)...), nil }
